@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Todo</title>
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --text:#1f2330; --muted:#8a90a2; --accent:#4f46e5; --line:#e6e8ef; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161c; --card:#1d2029; --text:#e8eaf0; --muted:#7d8396; --accent:#818cf8; --line:#2b2f3b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:560px; margin:0 auto; padding:32px 16px; }
+  h1 { margin:0; font-size:28px; }
+  .date { color:var(--muted); margin:4px 0 20px; }
+  form { display:flex; gap:8px; margin-bottom:16px; }
+  input[type=text] { flex:1; padding:12px 14px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--text); }
+  input[type=text]:focus { outline:2px solid var(--accent); border-color:transparent; }
+  button { cursor:pointer; border:0; border-radius:10px; font-size:15px; }
+  .add { background:var(--accent); color:#fff; padding:0 18px; }
+  ul { list-style:none; padding:0; margin:0; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  li { display:flex; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid var(--line); }
+  li:last-child { border-bottom:0; }
+  li input { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; }
+  li span { flex:1; word-break:break-word; }
+  li.done span { text-decoration:line-through; color:var(--muted); }
+  .del { background:none; color:var(--muted); font-size:20px; line-height:1; padding:4px 8px; }
+  .del:hover { color:#e5484d; }
+  .empty { padding:24px; text-align:center; color:var(--muted); }
+  footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; color:var(--muted); font-size:14px; }
+  .clear { background:none; color:var(--muted); text-decoration:underline; }
+  .status { font-size:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Today</h1>
+  <p class="date" id="date"></p>
+  <form id="form">
+    <input type="text" id="input" placeholder="Add a task..." autocomplete="off" autofocus>
+    <button class="add" type="submit">Add</button>
+  </form>
+  <ul id="list"></ul>
+  <footer>
+    <span id="count"></span>
+    <span class="status" id="status"></span>
+    <button class="clear" id="clear">Clear completed</button>
+  </footer>
+</main>
+<script>
+  const KEY = 'daily-todo-tasks';
+  let tasks = [];
+  try { tasks = JSON.parse(localStorage.getItem(KEY)) || []; } catch {}
+
+  const $ = id => document.getElementById(id);
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(tasks)); } catch {} };
+
+  function render() {
+    const list = $('list');
+    list.innerHTML = '';
+    if (!tasks.length) list.innerHTML = '<li class="empty">No tasks yet. Add one above.</li>';
+    tasks.forEach(t => {
+      const li = document.createElement('li');
+      if (t.done) li.className = 'done';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = t.done;
+      cb.onchange = () => { t.done = cb.checked; save(); render(); };
+      const span = document.createElement('span');
+      span.textContent = t.text;
+      const del = document.createElement('button');
+      del.className = 'del';
+      del.textContent = '×';
+      del.title = 'Delete';
+      del.onclick = () => { tasks = tasks.filter(x => x !== t); save(); render(); };
+      li.append(cb, span, del);
+      list.append(li);
+    });
+    const left = tasks.filter(t => !t.done).length;
+    $('count').textContent = `${left} left of ${tasks.length}`;
+  }
+
+  $('form').onsubmit = e => {
+    e.preventDefault();
+    const text = $('input').value.trim();
+    if (!text) return;
+    tasks.push({ text, done: false });
+    $('input').value = '';
+    save(); render();
+  };
+  $('clear').onclick = () => { tasks = tasks.filter(t => !t.done); save(); render(); };
+
+  $('date').textContent = new Date().toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' });
+  const net = () => $('status').textContent = navigator.onLine ? 'Online' : 'Offline';
+  addEventListener('online', net); addEventListener('offline', net); net();
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  render();
+</script>
+</body>
+</html>
